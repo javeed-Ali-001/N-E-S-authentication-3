@@ -1,0 +1,140 @@
+1. Middleware functions
+Middleware is a special kind of function in Express JS which accepts the request from
+
+the user (or)
+the previous middleware
+After processing the request the middleware function
+
+sends the response to another middleware (or)
+calls the API Handler (or)
+sends response to the user
+==========================================
+const jsonMiddleware = express.json();
+app.use(jsonMiddleware);
+==========================================
+
+It is a built-in middleware function it recognizes the incoming request object as a JSON object, parses it, and then calls handler in every API call
+
+1.1 Multiple Middleware functions
+We can pass multiple middleware functions
+
+==========================================
+app.method(Path, middleware1, middleware2, handler);
+==========================================
+
+2. Logger Middleware Implementation
+2.1 Defining a Middleware Function
+==========================================
+const middlewareFunction = (request, response, next) => {};
+==========================================
+
+
+2.2 Logger Middleware Function
+
+==========================================
+const logger = (request, response, next) => {
+  console.log(request.query);
+  next();
+};
+==========================================
+The next parameter is a function passed by Express JS which, when invoked, executes the next succeeding function
+
+
+2.3 Get Books API with Logger Middleware
+==========================================
+app.get("/books/", logger, async (request, response) => {
+  const getBooksQuery = `
+   SELECT
+    *
+   FROM
+    book
+   ORDER BY
+    book_id;`;
+  const booksArray = await db.all(getBooksQuery);
+  response.send(booksArray);
+});
+==========================================
+
+3. Authenticate Token Middleware
+In Authenticate Token Middleware we will verify the JWT Token
+==========================================
+const authenticateToken = (request, response, next) => {
+  let jwtToken;
+  const authHeader = request.headers["authorization"];
+  if (authHeader !== undefined) {
+    jwtToken = authHeader.split(" ")[1];
+  }
+  if (jwtToken === undefined) {
+    response.status(401);
+    response.send("Invalid JWT Token");
+  } else {
+    jwt.verify(jwtToken, "MY_SECRET_TOKEN", async (error, payload) => {
+      if (error) {
+        response.status(401);
+        response.send("Invalid JWT Token");
+      } else {
+        next();
+      }
+    });
+  }
+};
+==========================================
+
+
+
+4. Get Books API with Authenticate Token Middleware
+Let's Pass Authenticate Token Middleware to Get Books API
+==========================================
+app.get("/books/", authenticateToken, async (request, response) => {
+  const getBooksQuery = `
+   SELECT
+    *
+   FROM
+    book
+   ORDER BY
+    book_id;`;
+  const booksArray = await db.all(getBooksQuery);
+  response.send(booksArray);
+});
+==========================================
+
+
+
+5. Passing data from Authenticate Token Middleware
+We cannot directly pass data to the next handler, but we can send data through the request object
+==========================================
+const authenticateToken = (request, response, next) => {
+  let jwtToken;
+  const authHeader = request.headers["authorization"];
+  if (authHeader !== undefined) {
+    jwtToken = authHeader.split(" ")[1];
+  }
+  if (jwtToken === undefined) {
+    response.status(401);
+    response.send("Invalid JWT Token");
+  } else {
+    jwt.verify(jwtToken, "MY_SECRET_TOKEN", async (error, payload) => {
+      if (error) {
+        response.status(401);
+        response.send("Invalid JWT Token");
+      } else {
+        request.username = payload.username;
+        next();
+      }
+    });
+  }
+};
+==========================================
+
+
+6. Get User Profile API with Authenticate Token Middleware
+We can access request variable from the request object
+
+=========================================================
+app.get("/profile/", authenticateToken, async (request, response) => {
+  let { username } = request;
+  const selectUserQuery = `SELECT * FROM user WHERE username = '${username}'`;
+  const userDetails = await db.get(selectUserQuery);
+  response.send(userDetails);
+});
+===========================================================
